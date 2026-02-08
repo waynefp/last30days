@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(git clone:*)",
+      "Bash(python:*)",
+      "WebFetch(domain:platform.openai.com)",
+      "Bash(echo:*)",
+      "Bash(unset:*)",
+      "Bash(OPENAI_API_KEY=\"\" python:*)",
+      "Bash(OPENAI_API_KEY=\"\" python -c \"\nimport json, urllib.request\nfrom pathlib import Path\n\n# Read the .env key directly\nwith open\\(Path.home\\(\\) / ''.config/search-reddit/.env'', ''r''\\) as f:\n    for line in f:\n        if line.startswith\\(''OPENAI_API_KEY=''\\):\n            key = line.split\\(''='', 1\\)[1].strip\\(\\)\n            break\n\nfor model in [''gpt-5-search-api'', ''gpt-4o-search-preview'', ''gpt-4o-mini-search-preview'', ''gpt-4o-mini'', ''gpt-4o'']:\n    req = urllib.request.Request\\(''https://api.openai.com/v1/chat/completions''\\)\n    req.add_header\\(''Authorization'', f''Bearer {key}''\\)\n    req.add_header\\(''Content-Type'', ''application/json''\\)\n    payload = {''model'': model, ''messages'': [{''role'': ''user'', ''content'': ''Say hi''}], ''max_tokens'': 5}\n    try:\n        with urllib.request.urlopen\\(req, data=json.dumps\\(payload\\).encode\\(\\), timeout=15\\) as resp:\n            print\\(f''{model}: OK''\\)\n    except urllib.error.HTTPError as e:\n        body = e.read\\(\\).decode\\(\\)[:200]\n        print\\(f''{model}: FAIL {e.code} - {body[:100]}''\\)\n\")",
+      "Bash(OPENAI_API_KEY=\"\" python -c \"\nimport json, urllib.request\nfrom pathlib import Path\n\nwith open\\(Path.home\\(\\) / ''.config/search-reddit/.env'', ''r''\\) as f:\n    for line in f:\n        if line.startswith\\(''OPENAI_API_KEY=''\\):\n            key = line.split\\(''='', 1\\)[1].strip\\(\\)\n            break\n\n# Try Responses API \\(the recommended way for web_search\\)\nreq = urllib.request.Request\\(''https://api.openai.com/v1/responses''\\)\nreq.add_header\\(''Authorization'', f''Bearer {key}''\\)\nreq.add_header\\(''Content-Type'', ''application/json''\\)\n\npayload = {\n    ''model'': ''gpt-4o'',\n    ''tools'': [{''type'': ''web_search''}],\n    ''input'': ''Find 3 recent Reddit threads about Python async programming site:reddit.com''\n}\n\ntry:\n    with urllib.request.urlopen\\(req, data=json.dumps\\(payload\\).encode\\(\\), timeout=60\\) as resp:\n        data = json.loads\\(resp.read\\(\\)\\)\n        print\\(''RESPONSES API: OK''\\)\n        # Get output text\n        for item in data.get\\(''output'', []\\):\n            if isinstance\\(item, dict\\) and item.get\\(''type''\\) == ''message'':\n                for c in item.get\\(''content'', []\\):\n                    if c.get\\(''type''\\) == ''output_text'':\n                        print\\(c.get\\(''text'', ''''\\)[:500]\\)\nexcept urllib.error.HTTPError as e:\n    print\\(f''RESPONSES API: FAIL {e.code}''\\)\n    print\\(e.read\\(\\).decode\\(\\)[:300]\\)\n\")",
+      "Bash(git -C \"C:\\\\Users\\\\suzbp\\\\Documents\\\\Wayne-Training\\\\Projects\\\\Last_30Days-Skill\" status)",
+      "Bash(git -C \"C:\\\\Users\\\\suzbp\\\\.claude\\\\skills\\\\last30days\" status)",
+      "Bash(git -C \"C:\\\\Users\\\\suzbp\\\\.claude\\\\skills\\\\search-reddit\" status)",
+      "Bash(git -C \"C:\\\\Users\\\\suzbp\\\\.claude\\\\skills\\\\search-x\" status)",
+      "Bash(git -C \"C:\\\\Users\\\\suzbp\\\\.claude\\\\skills\\\\last30days\" rev-parse:*)",
+      "Bash(git -C \"C:\\\\Users\\\\suzbp\\\\.claude\\\\skills\\\\search-reddit\" rev-parse --git-dir)",
+      "Bash(git -C \"C:\\\\Users\\\\suzbp\\\\.claude\\\\skills\\\\search-x\" rev-parse --git-dir)",
+      "Bash(for d in \"C:\\\\Users\\\\suzbp\\\\.claude\\\\skills\\\\n8n\" \"C:\\\\Users\\\\suzbp\\\\.claude\\\\skills\\\\n8n-code-javascript\" \"C:\\\\Users\\\\suzbp\\\\.claude\\\\skills\\\\create-skill\" \"C:\\\\Users\\\\suzbp\\\\.claude\\\\skills\\\\tts\" \"C:\\\\Users\\\\suzbp\\\\.claude\\\\skills\\\\briefing\")",
+      "Bash(do echo \"=== $d ===\")",
+      "Bash(git -C \"$d\" rev-parse --git-dir)",
+      "Bash(done)",
+      "Bash(git -C \"C:/Users/suzbp/Documents/Wayne-Training/Projects/n8n_skills/n8n-skills-main\" rev-parse --git-dir)",
+      "Bash(git -C \"C:/Users/suzbp/Documents/Wayne-Training/Projects/n8n_skills/n8n-skills-main\" remote -v)",
+      "Bash(git -C:*)"
+    ]
+  }
+}
