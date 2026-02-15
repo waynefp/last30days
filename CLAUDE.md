@@ -56,7 +56,8 @@ Three-stage pipeline orchestrated by `scripts/last30days.py`:
 | `normalize.py` | Standardizes results into common schema |
 | `score.py` | Popularity-weighted ranking using engagement metrics |
 | `dedupe.py` | Near-duplicate detection across sources |
-| `render.py` | Multi-format output (compact, JSON, markdown, context, path) |
+| `render.py` | Multi-format output (compact, JSON, markdown, plain text) |
+| `gdrive.py` | Google Drive API integration for automatic report uploads |
 | `ui.py` | Progress indicators and visual feedback |
 
 ### Research Modes
@@ -72,6 +73,43 @@ The skill weights Reddit/X sources higher than web results based on engagement m
 ## Fixtures
 
 Test fixtures in `fixtures/` provide sample API responses (`openai_sample.json`, `xai_sample.json`, `reddit_thread_sample.json`, `models_openai_sample.json`, `models_xai_sample.json`) used by `--mock` mode and the test suite.
+
+## Google Drive Integration
+
+The skill supports automatic upload of research reports to Google Drive (optional):
+
+### Setup
+
+1. **Install dependencies:**
+   ```bash
+   pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
+   ```
+
+2. **Run setup script:**
+   ```bash
+   python setup_gdrive.py
+   ```
+
+3. **Configure credentials:**
+   - Create a Google Cloud project and enable Drive API
+   - Download OAuth credentials JSON
+   - Save to `~/.config/last30days/gdrive_credentials.json`
+   - First run will open browser for authentication
+   - Token saved to `~/.config/last30days/gdrive_token.json`
+
+### Behavior
+
+- Research reports are saved as both `.md` (markdown) and `.txt` (plain text)
+- If Google Drive is configured, `.txt` reports automatically upload to "30 Day Skills" folder
+- Upload failures are non-fatal — reports always save locally first
+- Existing files are updated in place (no duplicates)
+
+### Files
+
+- `scripts/lib/gdrive.py` — Google Drive API integration
+- `setup_gdrive.py` — Setup helper and status checker
+- `~/.config/last30days/gdrive_credentials.json` — OAuth client credentials (user-provided)
+- `~/.config/last30days/gdrive_token.json` — Cached access token (auto-generated)
 
 ## SKILL.md Conventions
 
