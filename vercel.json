@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/last30days_dashboard.html" }
+  ]
+}

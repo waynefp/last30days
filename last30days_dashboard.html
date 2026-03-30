@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Last 30 Days — Research Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
+        .tab-btn.active {
+            border-bottom: 2px solid #2563eb;
+            color: #1d4ed8;
+            font-weight: 600;
+        }
+
+        .report-content h2 {
+            font-size: 0.95rem; font-weight: 700; color: #1e40af;
+            border-bottom: 2px solid #bfdbfe; padding-bottom: 4px;
+            margin: 1.5rem 0 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .report-content h3 { font-size: 0.875rem; font-weight: 600; color: #1e3a8a; margin: 1rem 0 0.4rem; }
+        .report-content p  { margin: 0.4rem 0; color: #374151; line-height: 1.65; font-size: 0.875rem; }
+        .report-content ul { margin: 0.4rem 0; padding-left: 1.25rem; }
+        .report-content li { color: #374151; margin: 0.2rem 0; font-size: 0.875rem; line-height: 1.5; }
+        .report-content .stat { color: #1d4ed8; font-weight: 600; }
+        .report-content .header-block {
+            background: linear-gradient(135deg, #eff6ff, #dbeafe);
+            border-left: 4px solid #3b82f6; padding: 1rem 1.25rem;
+            border-radius: 0 10px 10px 0; margin-bottom: 1.5rem;
+        }
+
+        pre.command-box {
+            background: #0f172a; color: #7dd3fc;
+            padding: 0.875rem 1.125rem; border-radius: 8px;
+            font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; line-height: 1.5;
+        }
+
+        .fade-in { animation: fadeIn 0.25s ease; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+
+        .file-item:hover { background: #eff6ff; }
+        .file-item.selected { background: #dbeafe; color: #1d4ed8; }
+
+        .tool-card { cursor: pointer; transition: all 0.15s; }
+        .tool-card.selected { border-color: #3b82f6 !important; background: #eff6ff; }
+        .tool-card:hover:not(.selected) { border-color: #93c5fd; }
+
+        .slim-scroll::-webkit-scrollbar { width: 4px; }
+        .slim-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .slim-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+        .source-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 600;
+        }
+
+        /* Spinner */
+        .spinner {
+            width: 20px; height: 20px;
+            border: 3px solid #bfdbfe; border-top-color: #3b82f6;
+            border-radius: 50%; animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Progress bar */
+        .progress-bar { height: 3px; background: #dbeafe; border-radius: 999px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #3b82f6; border-radius: 999px; transition: width 0.5s ease; }
+
+        /* API config connected state */
+        .api-connected { border-color: #22c55e !important; background: #f0fdf4; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <!-- ── HEADER ─────────────────────────────────────────────── -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
+        <div class="max-w-7xl mx-auto px-6 py-3.5 flex items-center gap-3">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center shadow-sm">
+                    <span class="text-white text-sm font-bold">30</span>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold text-slate-900 leading-tight">Last 30 Days Research</h1>
+                    <p class="text-xs text-slate-400 leading-tight">Reddit · X · Web Intelligence Dashboard</p>
+                </div>
+            </div>
+            <div class="ml-auto flex items-center gap-2">
+                <span class="source-badge bg-orange-100 text-orange-700">Reddit</span>
+                <span class="source-badge bg-slate-900 text-white">𝕏</span>
+                <span class="source-badge bg-sky-100 text-sky-700">Web</span>
+                <!-- API status dot -->
+                <div class="flex items-center gap-1.5 ml-3 px-2.5 py-1 rounded-lg border text-xs font-medium" id="api-status-badge" style="border-color:#e2e8f0;background:#f8fafc;color:#94a3b8;">
+                    <div class="w-1.5 h-1.5 rounded-full bg-slate-300" id="api-dot"></div>
+                    <span id="api-status-text">Not configured</span>
+                </div>
+                <span class="text-xs text-slate-400 ml-1" id="current-date"></span>
+            </div>
+        </div>
+        <!-- Tabs -->
+        <div class="max-w-7xl mx-auto px-6 flex gap-8">
+            <button class="tab-btn active py-2.5 text-sm text-slate-500 border-b-2 border-transparent" data-tab="research">🔍 Research</button>
+            <button class="tab-btn py-2.5 text-sm text-slate-500 border-b-2 border-transparent" data-tab="library">📚 Report Library</button>
+            <button class="tab-btn py-2.5 text-sm text-slate-500 border-b-2 border-transparent" data-tab="reference">📖 Quick Reference</button>
+            <button class="tab-btn py-2.5 text-sm text-slate-500 border-b-2 border-transparent" data-tab="settings">⚙️ Settings</button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-8">
+
+        <!-- ══════════════════════════════════════════════════════ -->
+        <!-- TAB: RESEARCH                                          -->
+        <!-- ══════════════════════════════════════════════════════ -->
+        <div id="tab-research" class="tab-content fade-in">
+
+            <!-- No API configured banner -->
+            <div id="no-api-banner" class="hidden mb-5 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+                <span class="text-xl flex-shrink-0">⚠️</span>
+                <div>
+                    <p class="text-sm font-bold text-amber-800">API not configured</p>
+                    <p class="text-xs text-amber-700 mt-0.5">Go to the <button class="underline font-semibold" onclick="switchTab('settings')">Settings tab</button> and enter your VPS URL and API key to run live research.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-7">
+
+                <!-- ── LEFT: Search Controls ── -->
+                <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-5">
+                    <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide">Research Topic</h2>
+
+                    <!-- Topic input -->
+                    <div>
+                        <input type="text" id="topic-input"
+                            placeholder="e.g. AI coding assistants, n8n automation..."
+                            class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow">
+                    </div>
+
+                    <!-- Platform -->
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600 block mb-2">Platform</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="tool-card selected border-2 rounded-xl p-3 text-center" data-tool="last30days">
+                                <div class="text-lg mb-0.5">🔍</div>
+                                <div class="text-xs font-bold text-slate-800">All Sources</div>
+                                <div class="text-xs text-slate-400">Reddit+X+Web</div>
+                            </div>
+                            <div class="tool-card border-2 border-slate-200 rounded-xl p-3 text-center" data-tool="search-reddit">
+                                <div class="text-lg mb-0.5">🤖</div>
+                                <div class="text-xs font-bold text-slate-800">Reddit</div>
+                                <div class="text-xs text-slate-400">Deep threads</div>
+                            </div>
+                            <div class="tool-card border-2 border-slate-200 rounded-xl p-3 text-center" data-tool="search-x">
+                                <div class="text-lg mb-0.5">𝕏</div>
+                                <div class="text-xs font-bold text-slate-800">X Only</div>
+                                <div class="text-xs text-slate-400">Quick takes</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Depth -->
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600 block mb-2">Research Depth</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button class="depth-btn border-2 border-slate-200 rounded-xl py-2 text-xs font-semibold text-slate-600 hover:border-blue-300 transition-colors" data-depth="">Default</button>
+                            <button class="depth-btn selected-depth border-2 border-blue-400 bg-blue-50 rounded-xl py-2 text-xs font-semibold text-blue-700 transition-colors" data-depth="quick">⚡ Quick</button>
+                            <button class="depth-btn border-2 border-slate-200 rounded-xl py-2 text-xs font-semibold text-slate-600 hover:border-blue-300 transition-colors" data-depth="deep">🔬 Deep</button>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1.5" id="depth-hint">Quick: ~15 seconds. Good for a fast pulse check.</p>
+                    </div>
+
+                    <!-- Run button -->
+                    <button id="run-btn" class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl px-4 py-3 text-sm font-bold transition-colors shadow-sm flex items-center justify-center gap-2">
+                        <span id="run-btn-icon">🚀</span>
+                        <span id="run-btn-text">Run Research</span>
+                    </button>
+
+                    <button id="stop-btn" class="hidden w-full border border-red-300 text-red-600 hover:bg-red-50 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors">
+                        ✕ Cancel
+                    </button>
+                </div>
+
+                <!-- ── RIGHT: Results ── -->
+                <div class="lg:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col">
+
+                    <!-- Empty state -->
+                    <div id="results-empty" class="flex-1 flex flex-col items-center justify-center py-16">
+                        <div class="text-5xl mb-4 opacity-20">🔬</div>
+                        <p class="text-sm font-semibold text-slate-400">Enter a topic and click Run Research</p>
+                        <p class="text-xs text-slate-300 mt-1">Results will appear here</p>
+                    </div>
+
+                    <!-- Loading state -->
+                    <div id="results-loading" class="hidden flex-1 flex flex-col items-center justify-center py-16 gap-4">
+                        <div class="spinner"></div>
+                        <div class="text-center">
+                            <p class="text-sm font-semibold text-blue-700" id="loading-topic"></p>
+                            <p class="text-xs text-slate-400 mt-1" id="loading-status">Searching Reddit, X, and the web...</p>
+                        </div>
+                        <div class="w-64 progress-bar">
+                            <div class="progress-fill" id="progress-fill" style="width:5%"></div>
+                        </div>
+                        <p class="text-xs text-slate-300" id="loading-timer">0s elapsed</p>
+                    </div>
+
+                    <!-- Error state -->
+                    <div id="results-error" class="hidden flex-1 flex flex-col items-center justify-center py-10">
+                        <div class="text-4xl mb-3">⚠️</div>
+                        <p class="text-sm font-bold text-red-700 mb-1">Research failed</p>
+                        <p class="text-xs text-red-600 text-center max-w-sm" id="error-text"></p>
+                        <button onclick="clearResults()" class="mt-4 text-xs text-blue-600 underline">Try again</button>
+                    </div>
+
+                    <!-- Results content -->
+                    <div id="results-content" class="hidden flex-1 flex flex-col">
+                        <div class="flex items-center justify-between mb-3 pb-3 border-b border-slate-100">
+                            <div>
+                                <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Results — </span>
+                                <span class="text-xs font-bold text-blue-700" id="results-topic-label"></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-slate-400" id="results-meta"></span>
+                                <button id="copy-results-btn" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-medium transition-colors">📋 Copy</button>
+                                <button onclick="clearResults()" class="text-xs text-slate-400 hover:text-slate-600 px-2 py-1.5 rounded-lg transition-colors">✕</button>
+                            </div>
+                        </div>
+                        <div id="results-body" class="report-content overflow-y-auto slim-scroll flex-1 pr-1" style="max-height: calc(100vh - 320px);"></div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════ -->
+        <!-- TAB: REPORT LIBRARY                                    -->
+        <!-- ══════════════════════════════════════════════════════ -->
+        <div id="tab-library" class="tab-content hidden fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Sidebar -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-sm font-bold text-slate-800">Reports</h2>
+                        <button id="open-folder-btn" class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors">Open Folder</button>
+                    </div>
+                    <div id="folder-hint" class="py-8 text-center">
+                        <div class="text-3xl mb-3">📁</div>
+                        <p class="text-xs text-slate-500 mb-3 leading-relaxed">Open a folder containing your saved research reports</p>
+                        <p class="text-xs font-semibold text-slate-400 mb-1">Suggested folders:</p>
+                        <code class="text-xs text-blue-600 block">~/.local/share/last30days/out/</code>
+                        <code class="text-xs text-blue-600 block mt-0.5">~/.local/share/search-reddit/out/</code>
+                        <code class="text-xs text-blue-600 block mt-0.5">~/.local/share/search-x/out/</code>
+                    </div>
+                    <div id="file-list" class="hidden space-y-0.5 overflow-y-auto slim-scroll max-h-96"></div>
+                    <div id="file-count" class="hidden mt-3 pt-3 border-t border-slate-100">
+                        <p class="text-xs text-slate-400 text-center" id="file-count-text"></p>
+                    </div>
+                </div>
+                <!-- Viewer -->
+                <div class="lg:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                    <div id="report-placeholder" class="flex flex-col items-center justify-center h-80">
+                        <div class="text-5xl mb-4 opacity-20">📋</div>
+                        <p class="text-sm text-slate-400">Select a report from the sidebar</p>
+                    </div>
+                    <div id="report-view" class="hidden h-full">
+                        <div class="flex items-start justify-between mb-4 pb-4 border-b border-slate-100">
+                            <div class="flex-1">
+                                <h3 id="report-title" class="text-base font-bold text-slate-900"></h3>
+                                <p id="report-meta" class="text-xs text-slate-400 mt-1"></p>
+                            </div>
+                            <button id="copy-report-btn" class="ml-4 text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-medium transition-colors flex-shrink-0">📋 Copy Text</button>
+                        </div>
+                        <div id="report-content-view" class="report-content overflow-y-auto slim-scroll" style="max-height: calc(100vh - 320px);"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════ -->
+        <!-- TAB: QUICK REFERENCE                                   -->
+        <!-- ══════════════════════════════════════════════════════ -->
+        <div id="tab-reference" class="tab-content hidden fade-in">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-lg">🔍</span>
+                        <h3 class="font-bold text-slate-800">All Sources</h3>
+                        <span class="source-badge bg-blue-100 text-blue-700 ml-auto">last30days</span>
+                    </div>
+                    <pre class="command-box text-xs mb-3" id="ref-cmd-all">python ~/.claude/skills/last30days/scripts/last30days.py "TOPIC"</pre>
+                    <p class="text-xs text-slate-500">Searches Reddit + X + Web simultaneously.</p>
+                    <div class="flex flex-wrap gap-1 mt-2.5">
+                        <span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg">--quick</span>
+                        <span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg">--deep</span>
+                        <span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg">--mock</span>
+                        <span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg">--refresh</span>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-lg">🤖</span>
+                        <h3 class="font-bold text-slate-800">Reddit Only</h3>
+                        <span class="source-badge bg-orange-100 text-orange-700 ml-auto">search-reddit</span>
+                    </div>
+                    <pre class="command-box text-xs mb-3" id="ref-cmd-reddit">python ~/.claude/skills/search-reddit/scripts/search_reddit.py "TOPIC"</pre>
+                    <p class="text-xs text-slate-500">Deep threads, how-tos, community opinions.</p>
+                    <div class="mt-2.5 text-xs text-slate-400">Default: 30–50 · Quick: 15–25 · Deep: 70–100</div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-lg">𝕏</span>
+                        <h3 class="font-bold text-slate-800">X Only</h3>
+                        <span class="source-badge bg-slate-900 text-white ml-auto">search-x</span>
+                    </div>
+                    <pre class="command-box text-xs mb-3" id="ref-cmd-x">python ~/.claude/skills/search-x/scripts/search_x.py "TOPIC"</pre>
+                    <p class="text-xs text-slate-500">Quick takes, trends, announcements.</p>
+                    <div class="mt-2.5 text-xs text-slate-400">Default: 20–30 · Quick: 8–12 · Deep: 40–60</div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                    <h3 class="font-bold text-slate-800 mb-3">Scoring Formula</h3>
+                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 text-center mb-3 border border-blue-100">
+                        <p class="text-xs font-mono font-bold text-blue-900">45% Relevance</p>
+                        <p class="text-xs font-mono font-bold text-blue-800">+ 25% Recency</p>
+                        <p class="text-xs font-mono font-bold text-blue-700">+ 30% Engagement</p>
+                    </div>
+                    <p class="text-xs text-slate-400">Results cached 24hr. Use <code class="text-blue-600">--refresh</code> to bypass.</p>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                    <h3 class="font-bold text-slate-800 mb-3">Output File Locations</h3>
+                    <div class="space-y-2.5 text-xs">
+                        <div><p class="font-bold text-slate-500 uppercase tracking-wide mb-0.5">last30days</p><code class="text-blue-600">~/.local/share/last30days/out/</code></div>
+                        <div><p class="font-bold text-slate-500 uppercase tracking-wide mb-0.5">search-reddit</p><code class="text-blue-600">~/.local/share/search-reddit/out/</code></div>
+                        <div><p class="font-bold text-slate-500 uppercase tracking-wide mb-0.5">search-x</p><code class="text-blue-600">~/.local/share/search-x/out/</code></div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                    <h3 class="font-bold text-slate-800 mb-3">Common Patterns</h3>
+                    <div class="space-y-3">
+                        <div><p class="text-xs font-semibold text-slate-600 mb-1">Quick pulse check</p><pre class="command-box text-xs" id="ref-pattern-1">python ~/.claude/skills/search-x/scripts/search_x.py "topic" --quick</pre></div>
+                        <div><p class="text-xs font-semibold text-slate-600 mb-1">Deep report (Markdown)</p><pre class="command-box text-xs" id="ref-pattern-2">python ~/.claude/skills/last30days/scripts/last30days.py "topic" --deep --emit=md</pre></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════ -->
+        <!-- TAB: SETTINGS                                          -->
+        <!-- ══════════════════════════════════════════════════════ -->
+        <div id="tab-settings" class="tab-content hidden fade-in">
+            <div class="max-w-xl">
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-5">
+                    <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-5">API Connection</h2>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-semibold text-slate-600 block mb-1.5">VPS API URL</label>
+                            <input type="text" id="settings-url"
+                                placeholder="http://YOUR_VPS_IP:8000"
+                                class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+                            <p class="text-xs text-slate-400 mt-1">Your Hostinger VPS IP address and port</p>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-semibold text-slate-600 block mb-1.5">API Key</label>
+                            <input type="password" id="settings-key"
+                                placeholder="Your API key from /opt/last30days/api/.env"
+                                class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+                            <p class="text-xs text-slate-400 mt-1">Set during VPS setup — check <code class="text-blue-600">/opt/last30days/api/.env</code></p>
+                        </div>
+
+                        <div class="flex gap-3 pt-1">
+                            <button id="save-settings-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors">Save Settings</button>
+                            <button id="test-connection-btn" class="border border-slate-300 hover:border-blue-400 text-slate-600 hover:text-blue-600 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors">Test Connection</button>
+                        </div>
+
+                        <div id="connection-result" class="hidden text-xs p-3 rounded-xl"></div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                    <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-4">VPS Setup Instructions</h2>
+                    <ol class="space-y-3 text-xs text-slate-600">
+                        <li class="flex gap-2.5">
+                            <span class="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-xs">1</span>
+                            <div>Go to your <strong>Hostinger hPanel</strong> → VPS → <strong>Browser Terminal</strong></div>
+                        </li>
+                        <li class="flex gap-2.5">
+                            <span class="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-xs">2</span>
+                            <div>Run this command to download and execute the setup script:<br>
+                                <pre class="command-box mt-1.5">curl -s https://raw.githubusercontent.com/waynefp/last30days/master/setup_vps.sh | bash</pre>
+                            </div>
+                        </li>
+                        <li class="flex gap-2.5">
+                            <span class="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-xs">3</span>
+                            <div>The script will ask for your OpenAI and xAI API keys, then ask you to set an API key for this dashboard. Note that key down.</div>
+                        </li>
+                        <li class="flex gap-2.5">
+                            <span class="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-xs">4</span>
+                            <div>Enter your <strong>VPS IP</strong> and <strong>API key</strong> above, click Save, then Test Connection.</div>
+                        </li>
+                        <li class="flex gap-2.5">
+                            <span class="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-xs">5</span>
+                            <div>Once connected, go to the <strong>Research tab</strong> and run your first search!</div>
+                        </li>
+                    </ol>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // ─── Date ──────────────────────────────────────────────────
+        document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', {
+            weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+        });
+
+        // ─── Tab switching ─────────────────────────────────────────
+        function switchTab(name) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            const btn = document.querySelector(`.tab-btn[data-tab="${name}"]`);
+            const tab = document.getElementById(`tab-${name}`);
+            if (btn) btn.classList.add('active');
+            if (tab) { tab.classList.remove('hidden'); tab.classList.remove('fade-in'); void tab.offsetWidth; tab.classList.add('fade-in'); }
+        }
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        });
+
+        // ─── Settings persistence ──────────────────────────────────
+        let API_URL = localStorage.getItem('api_url') || '';
+        let API_KEY_VAL = localStorage.getItem('api_key') || '';
+
+        function loadSettings() {
+            document.getElementById('settings-url').value = API_URL;
+            document.getElementById('settings-key').value = API_KEY_VAL;
+            updateApiStatusBadge();
+            if (!API_URL) {
+                document.getElementById('no-api-banner').classList.remove('hidden');
+            }
+        }
+
+        function updateApiStatusBadge() {
+            const dot  = document.getElementById('api-dot');
+            const text = document.getElementById('api-status-text');
+            const badge = document.getElementById('api-status-badge');
+            if (API_URL && API_KEY_VAL) {
+                dot.className   = 'w-1.5 h-1.5 rounded-full bg-green-400';
+                text.textContent = 'Connected';
+                badge.style.cssText = 'border-color:#86efac;background:#f0fdf4;color:#16a34a;';
+            } else {
+                dot.className   = 'w-1.5 h-1.5 rounded-full bg-slate-300';
+                text.textContent = 'Not configured';
+                badge.style.cssText = 'border-color:#e2e8f0;background:#f8fafc;color:#94a3b8;';
+            }
+        }
+
+        document.getElementById('save-settings-btn').addEventListener('click', () => {
+            API_URL     = document.getElementById('settings-url').value.trim().replace(/\/$/, '');
+            API_KEY_VAL = document.getElementById('settings-key').value.trim();
+            localStorage.setItem('api_url', API_URL);
+            localStorage.setItem('api_key', API_KEY_VAL);
+            updateApiStatusBadge();
+            if (API_URL) document.getElementById('no-api-banner').classList.add('hidden');
+            const btn = document.getElementById('save-settings-btn');
+            btn.textContent = '✅ Saved!';
+            setTimeout(() => btn.textContent = 'Save Settings', 2000);
+        });
+
+        document.getElementById('test-connection-btn').addEventListener('click', async () => {
+            const url = document.getElementById('settings-url').value.trim().replace(/\/$/, '');
+            const res = document.getElementById('connection-result');
+            res.classList.remove('hidden');
+            res.className = 'text-xs p-3 rounded-xl bg-blue-50 text-blue-700';
+            res.textContent = 'Testing connection...';
+            try {
+                const r = await fetch(`${url}/health`, { signal: AbortSignal.timeout(8000) });
+                const data = await r.json();
+                const scripts = Object.entries(data.scripts || {}).map(([k,v]) => `${k}: ${v ? '✅' : '❌'}`).join('  ');
+                res.className = 'text-xs p-3 rounded-xl bg-green-50 text-green-800 font-medium';
+                res.textContent = `✅ Connected! Scripts: ${scripts}`;
+            } catch (e) {
+                res.className = 'text-xs p-3 rounded-xl bg-red-50 text-red-700';
+                res.textContent = `❌ Could not connect: ${e.message}. Check the URL and that port 8000 is open on your VPS firewall.`;
+            }
+        });
+
+        // ─── Tool selection ────────────────────────────────────────
+        let selectedTool = 'last30days';
+        document.querySelectorAll('.tool-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.tool-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selectedTool = card.dataset.tool;
+            });
+        });
+
+        // ─── Depth selection ───────────────────────────────────────
+        let selectedDepth = 'quick';
+        const depthHints = {
+            '':      'Default: balanced results, ~30–60 seconds.',
+            'quick': 'Quick: ~15 seconds. Good for a fast pulse check.',
+            'deep':  'Deep: 1–3 minutes. Most comprehensive results.'
+        };
+
+        document.querySelectorAll('.depth-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.depth-btn').forEach(b => {
+                    b.className = 'depth-btn border-2 border-slate-200 rounded-xl py-2 text-xs font-semibold text-slate-600 hover:border-blue-300 transition-colors';
+                });
+                btn.className = 'depth-btn selected-depth border-2 border-blue-400 bg-blue-50 rounded-xl py-2 text-xs font-semibold text-blue-700 transition-colors';
+                selectedDepth = btn.dataset.depth;
+                document.getElementById('depth-hint').textContent = depthHints[selectedDepth];
+            });
+        });
+
+        // ─── Research runner ───────────────────────────────────────
+        let abortController = null;
+        let timerInterval   = null;
+        let lastRawOutput   = '';
+
+        function clearResults() {
+            showState('empty');
+        }
+
+        function showState(state) {
+            ['empty','loading','error','content'].forEach(s => {
+                document.getElementById(`results-${s}`).classList.add('hidden');
+            });
+            document.getElementById(`results-${state}`).classList.remove('hidden');
+        }
+
+        document.getElementById('run-btn').addEventListener('click', async () => {
+            const topic = document.getElementById('topic-input').value.trim();
+            if (!topic) { document.getElementById('topic-input').focus(); return; }
+            if (!API_URL || !API_KEY_VAL) { switchTab('settings'); return; }
+
+            // UI: start loading
+            showState('loading');
+            document.getElementById('run-btn').classList.add('hidden');
+            document.getElementById('stop-btn').classList.remove('hidden');
+            document.getElementById('loading-topic').textContent = `"${topic}"`;
+
+            const loadingMessages = [
+                'Searching Reddit, X, and the web...',
+                'Scoring results by engagement and recency...',
+                'Deduplicating and ranking sources...',
+                'Generating your research report...',
+            ];
+            let msgIdx = 0;
+            const statusEl = document.getElementById('loading-status');
+            const progressEl = document.getElementById('progress-fill');
+            const timerEl = document.getElementById('loading-timer');
+
+            let elapsed = 0;
+            timerInterval = setInterval(() => {
+                elapsed++;
+                timerEl.textContent = `${elapsed}s elapsed`;
+                // Rotate messages every 8s
+                if (elapsed % 8 === 0) { msgIdx = (msgIdx + 1) % loadingMessages.length; statusEl.textContent = loadingMessages[msgIdx]; }
+                // Progress bar creeps toward 90% (never completes until done)
+                const pct = Math.min(90, 5 + elapsed * 1.5);
+                progressEl.style.width = pct + '%';
+            }, 1000);
+
+            abortController = new AbortController();
+
+            try {
+                const resp = await fetch(`${API_URL}/research`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY_VAL },
+                    body: JSON.stringify({ topic, tool: selectedTool, depth: selectedDepth || null, emit: 'md', refresh: false }),
+                    signal: abortController.signal,
+                });
+
+                clearInterval(timerInterval);
+                progressEl.style.width = '100%';
+
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                    throw new Error(err.detail || `HTTP ${resp.status}`);
+                }
+
+                const data = await resp.json();
+                lastRawOutput = data.output;
+
+                // Show results
+                document.getElementById('results-topic-label').textContent = topic;
+                document.getElementById('results-meta').textContent = `${selectedTool} · ${selectedDepth || 'default'} · ${elapsed}s`;
+                document.getElementById('results-body').innerHTML = renderReportText(data.output);
+                showState('content');
+
+            } catch (e) {
+                clearInterval(timerInterval);
+                if (e.name === 'AbortError') {
+                    showState('empty');
+                } else {
+                    document.getElementById('error-text').textContent = e.message;
+                    showState('error');
+                }
+            } finally {
+                document.getElementById('run-btn').classList.remove('hidden');
+                document.getElementById('stop-btn').classList.add('hidden');
+                abortController = null;
+            }
+        });
+
+        document.getElementById('stop-btn').addEventListener('click', () => {
+            if (abortController) abortController.abort();
+            clearInterval(timerInterval);
+        });
+
+        document.getElementById('copy-results-btn').addEventListener('click', () => {
+            navigator.clipboard.writeText(lastRawOutput).then(() => {
+                const btn = document.getElementById('copy-results-btn');
+                const orig = btn.textContent;
+                btn.textContent = '✅ Copied!';
+                setTimeout(() => btn.textContent = orig, 2000);
+            });
+        });
+
+        // ─── Enter key to run ──────────────────────────────────────
+        document.getElementById('topic-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') document.getElementById('run-btn').click();
+        });
+
+        // ─── Report text renderer ──────────────────────────────────
+        function renderReportText(text) {
+            const lines = text.split('\n');
+            let html = '', inList = false, headerCaptured = false, headerLines = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                const t = lines[i].trim();
+                if (t.match(/^={5,}$/)) { headerCaptured = true; break; }
+                if (t) headerLines.push(t);
+            }
+
+            if (headerLines.length > 0 && headerCaptured) {
+                html += '<div class="header-block">';
+                headerLines.forEach((line, i) => {
+                    html += i === 0
+                        ? `<div class="text-sm font-extrabold text-blue-900 mb-1">${esc(line)}</div>`
+                        : `<div class="text-xs text-blue-700">${esc(line)}</div>`;
+                });
+                html += '</div>';
+            }
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i], t = line.trim();
+                if (t.match(/^={5,}$/) || t.match(/^-{5,}$/)) continue;
+                if (!headerCaptured && headerLines.includes(t)) continue;
+
+                if (i > 0 && lines[i-1].trim().match(/^={5,}$/)) {
+                    if (inList) { html += '</ul>'; inList = false; }
+                    if (t) html += `<h2>${esc(t)}</h2>`;
+                    continue;
+                }
+                if (i > 0 && lines[i-1].trim().match(/^-{5,}$/)) {
+                    if (inList) { html += '</ul>'; inList = false; }
+                    if (t) html += `<h3>${esc(t)}</h3>`;
+                    continue;
+                }
+                if (t.length > 4 && t === t.toUpperCase() && /[A-Z]{3,}/.test(t) && !t.startsWith('-') && !t.match(/^\d/)) {
+                    if (inList) { html += '</ul>'; inList = false; }
+                    html += `<h3>${esc(t)}</h3>`;
+                    continue;
+                }
+                if (t.match(/^[-•*]\s+/)) {
+                    if (!inList) { html += '<ul class="list-disc">'; inList = true; }
+                    html += `<li>${highlight(esc(t.replace(/^[-•*]\s+/, '')))}</li>`;
+                    continue;
+                }
+                if (t.match(/^\d+[.)]\s+/)) {
+                    if (!inList) { html += '<ul class="list-decimal">'; inList = true; }
+                    html += `<li>${highlight(esc(t.replace(/^\d+[.)]\s+/, '')))}</li>`;
+                    continue;
+                }
+                if (!t) { if (inList) { html += '</ul>'; inList = false; } continue; }
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<p>${highlight(esc(t))}</p>`;
+            }
+            if (inList) html += '</ul>';
+            return html;
+        }
+
+        function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+        function highlight(t) { return t.replace(/(\d+%|\$[\d,]+[+KMBk]*|\b\d{1,3}(?:,\d{3})+\b|\b\d+[KMBk]\+?)/g, '<span class="stat">$1</span>'); }
+
+        // ─── File System API (Report Library) ─────────────────────
+        let dirHandle = null, currentReportText = '';
+
+        document.getElementById('open-folder-btn').addEventListener('click', async () => {
+            try {
+                dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+                await loadFileList();
+            } catch(e) { if (e.name !== 'AbortError') alert('Could not open folder: ' + e.message); }
+        });
+
+        async function loadFileList() {
+            const list = document.getElementById('file-list');
+            list.innerHTML = '';
+            const files = [];
+            for await (const [name, handle] of dirHandle.entries()) {
+                if (handle.kind === 'file' && (name.endsWith('.txt') || name.endsWith('.md')) && !name.startsWith('.'))
+                    files.push({ name, handle });
+            }
+            if (!files.length) {
+                list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">No .txt or .md files found.</p>';
+            } else {
+                files.sort((a,b) => a.name.localeCompare(b.name));
+                files.forEach(({ name, handle }) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'file-item w-full text-left px-3 py-2.5 rounded-xl text-xs text-slate-700 flex items-start gap-2 transition-colors';
+                    btn.innerHTML = `<span class="flex-shrink-0 mt-0.5">${name.endsWith('.md') ? '📝' : '📄'}</span><span class="truncate">${name}</span>`;
+                    btn.addEventListener('click', () => openFile(name, handle, btn));
+                    list.appendChild(btn);
+                });
+                document.getElementById('file-count-text').textContent = `${files.length} file${files.length !== 1 ? 's' : ''} found`;
+                document.getElementById('file-count').classList.remove('hidden');
+            }
+            document.getElementById('folder-hint').classList.add('hidden');
+            list.classList.remove('hidden');
+        }
+
+        async function openFile(name, handle, btn) {
+            document.querySelectorAll('.file-item').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            const file = await handle.getFile();
+            currentReportText = await file.text();
+            document.getElementById('report-placeholder').classList.add('hidden');
+            document.getElementById('report-view').classList.remove('hidden');
+            document.getElementById('report-title').textContent = name.replace(/\.(txt|md)$/, '').replace(/_/g, ' ');
+            document.getElementById('report-meta').textContent = `${name} · ${(file.size/1024).toFixed(1)} KB · ${new Date(file.lastModified).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'})}`;
+            document.getElementById('report-content-view').innerHTML = renderReportText(currentReportText);
+        }
+
+        document.getElementById('copy-report-btn').addEventListener('click', () => {
+            navigator.clipboard.writeText(currentReportText).then(() => {
+                const btn = document.getElementById('copy-report-btn');
+                btn.textContent = '✅ Copied!';
+                setTimeout(() => btn.innerHTML = '📋 Copy Text', 2000);
+            });
+        });
+
+        // ─── Init ──────────────────────────────────────────────────
+        loadSettings();
+    </script>
+</body>
+</html>
