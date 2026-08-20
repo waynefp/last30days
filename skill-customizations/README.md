@@ -12,6 +12,12 @@ their only version history.
 | `gdrive.py` | `~/.claude/skills/last30days/scripts/lib/gdrive.py` |
 | `setup_gdrive.py` | `~/.claude/skills/last30days/setup_gdrive.py` |
 | `SKILL.md.local-section.md` | a section inside `~/.claude/skills/last30days/SKILL.md` |
+| `SKILL.md.frontmatter.patch.md` | two field edits in `SKILL.md` frontmatter |
+
+There are **four** discrete edits, not three. The two frontmatter fields are easy to
+miss because they are one-line changes far from the section: they were silently lost
+during the 3.18.4 -> 3.21.1 upgrade on 2026-08-19 and had to be recovered from a
+filesystem backup.
 
 ## Re-applying after an upstream merge
 
