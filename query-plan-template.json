@@ -1,0 +1,28 @@
+{
+  "intent": "concept",
+  "freshness_mode": "evergreen_ok",
+  "cluster_mode": "none",
+  "subqueries": [
+    {
+      "label": "primary",
+      "search_query": "TOPIC KEYWORDS HERE",
+      "ranking_query": "What is the natural-language question this research should answer?",
+      "sources": ["reddit", "x", "youtube", "tiktok", "instagram", "hackernews", "polymarket", "pinterest", "github", "grounding"],
+      "weight": 1.0
+    },
+    {
+      "label": "secondary",
+      "search_query": "NARROWER ANGLE KEYWORDS",
+      "ranking_query": "What is the secondary question, on the same anchored entity?",
+      "sources": ["reddit", "youtube", "x", "tiktok", "github", "hackernews"],
+      "weight": 0.8
+    },
+    {
+      "label": "peripheral",
+      "search_query": "THIRD ANGLE KEYWORDS",
+      "ranking_query": "What is the peripheral question worth a lower weight?",
+      "sources": ["reddit", "youtube", "instagram", "tiktok", "x", "pinterest"],
+      "weight": 0.6
+    }
+  ]
+}
