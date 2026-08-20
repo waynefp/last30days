@@ -1,0 +1,48 @@
+# Credentials and config - never commit
+.env
+.env.*
+*.env
+gdrive_credentials.json
+gdrive_token.json
+*token.json
+*credentials.json
+*.pem
+*.key
+
+# ...but keep committed templates that carry no real values
+!.env.example
+!*.env.example
+!*.env.sample
+
+# last30days runtime state
+last-run.json
+last-report.json
+doctor-cache.json
+corpus-cache.json
+.github-device-handle.json
+
+# Windows artifacts
+nul
+Thumbs.db
+desktop.ini
+
+# macOS artifacts
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Logs and scratch
+*.log
+scratch/
+tmp/
